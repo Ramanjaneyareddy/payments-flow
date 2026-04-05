@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,10 +37,10 @@ class FraudEngineTest {
 
     @BeforeEach
     void setUp() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        when(redisTemplate.opsForSet()).thenReturn(setOps);
-        when(valueOps.increment(anyString())).thenReturn(1L);
-        when(setOps.isMember(anyString(), anyString())).thenReturn(false);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        lenient().when(redisTemplate.opsForSet()).thenReturn(setOps);
+        lenient().when(valueOps.increment(anyString())).thenReturn(1L);
+        lenient(). when(setOps.isMember(anyString(), anyString())).thenReturn(false);
 
         var rules = List.of(
             new AmountRule(),
