@@ -1,0 +1,184 @@
+name: PayFlow CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1 – Build & Test all services
+  # ─────────────────────────────────────────────
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: payflow_test
+          MYSQL_USER: payflow
+          MYSQL_PASSWORD: payflow
+          MYSQL_ROOT_PASSWORD: rootpassword
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h127.0.0.1 -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=30s
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=3s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # ── Payment Service ──────────────────────────────────────────────
+      - name: Build and test Payment Service
+        working-directory: ./payflow/payment-service
+        env:
+          DB_USERNAME: payflow
+          DB_PASSWORD: payflow
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/payflow_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        run: mvn -B -ntp clean verify
+
+      - name: Upload payment-service test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: payment-test-results
+          path: payflow/payment-service/target/surefire-reports/
+
+      # ── Fraud Detection Service ──────────────────────────────────────
+      - name: Build and test Fraud Detection Service
+        working-directory: ./payflow/fraud-detection-service
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: mvn -B -ntp clean verify
+
+      - name: Upload fraud-service test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fraud-test-results
+          path: payflow/fraud-detection-service/target/surefire-reports/
+
+      # ── Inquiry Service ──────────────────────────────────────────────
+      - name: Build and test Inquiry Service
+        working-directory: ./payflow/inquiry-service
+        env:
+          DB_USERNAME: payflow
+          DB_PASSWORD: payflow
+          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/payflow_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+        run: mvn -B -ntp clean verify
+
+      - name: Upload inquiry-service test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inquiry-test-results
+          path: payflow/inquiry-service/target/surefire-reports/
+
+      # ── AI Service ───────────────────────────────────────────────────
+      # Note: unit tests use Mockito — no real OpenAI call is made in CI
+      - name: Build and test AI Service
+        working-directory: ./payflow/ai-service
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: mvn -B -ntp clean verify
+
+      - name: Upload ai-service test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-test-results
+          path: payflow/ai-service/target/surefire-reports/
+
+  # ─────────────────────────────────────────────
+  # Job 2 – Build & Push Docker Images (main only)
+  # ─────────────────────────────────────────────
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push Payment Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./payflow/payment-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/payflow-payment-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/payflow-payment-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Fraud Detection Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./payflow/fraud-detection-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/payflow-fraud-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/payflow-fraud-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Inquiry Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./payflow/inquiry-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/payflow-inquiry-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/payflow-inquiry-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push AI Service image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./payflow/ai-service
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/payflow-ai-service:latest
+            ${{ secrets.DOCKER_USERNAME }}/payflow-ai-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

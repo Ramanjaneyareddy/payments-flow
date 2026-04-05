@@ -1,0 +1,2448 @@
+{
+  "info": {
+    "name": "PayFlow - Complete API Collection (with AI & Fraud)",
+    "description": "Complete PayFlow API collection.\n\n4 Application Services:\n  \u2022 payment-service    :8081\n  \u2022 fraud-detection    :8083\n  \u2022 inquiry-service    :8085\n  \u2022 ai-service (Spring AI) :8087\n\n6 Folders | ~60 requests | Full test scripts\n\nSet OPENAI_API_KEY env var before starting ai-service.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "payment_service_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "fraud_service_url",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "inquiry_service_url",
+      "value": "http://localhost:8085",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sender_id",
+      "value": "user-001",
+      "type": "string"
+    },
+    {
+      "key": "ai_service_url",
+      "value": "http://localhost:8087",
+      "type": "string"
+    },
+    {
+      "key": "chat_session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_predicted_decision",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_final_status",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_risk_rating",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_fraud_score",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "e2e_sender_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Payment Service",
+      "description": "Payment Service endpoints (port 8081)",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments/health",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "health"
+              ]
+            },
+            "description": "Check if Payment Service is running"
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - Small (APPROVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var response = pm.response.json();",
+                  "if (response.id) {",
+                  "    pm.collectionVariables.set('payment_id', response.id);",
+                  "    console.log('Payment ID saved:', response.id);",
+                  "}",
+                  "pm.test('Status is 201', function() { pm.response.to.have.status(201); });",
+                  "pm.test('Payment has ID', function() { pm.expect(response.id).to.not.be.null; });",
+                  "pm.test('Status is FRAUD_CHECK or PENDING', function() {",
+                  "    pm.expect(['PENDING','FRAUD_CHECK','APPROVED']).to.include(response.status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"user-002\",\n  \"amount\": 50.00,\n  \"currency\": \"EUR\",\n  \"description\": \"Small test payment - should be APPROVED\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Send a small payment - should be APPROVED by fraud detection"
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - High Value (REVIEW)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"user-003\",\n  \"amount\": 10000.00,\n  \"currency\": \"EUR\",\n  \"description\": \"High value payment - should trigger REVIEW\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Send a high value payment over 10000 EUR - should be flagged for REVIEW"
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - Very High Value (REJECTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"user-003\",\n  \"amount\": 75000.00,\n  \"currency\": \"EUR\",\n  \"description\": \"Very high value payment - should be REJECTED\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Send a very high value payment over 50000 EUR - should be REJECTED"
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - Blacklisted Sender (REJECTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"blocked-user-001\",\n  \"receiverId\": \"user-002\",\n  \"amount\": 100.00,\n  \"currency\": \"EUR\",\n  \"description\": \"Payment from blacklisted user - should be REJECTED with score 1.0\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Payment from a blacklisted sender - fraud score 1.0, REJECTED"
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - USD Currency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-003\",\n  \"receiverId\": \"user-004\",\n  \"amount\": 250.00,\n  \"currency\": \"USD\",\n  \"description\": \"USD payment test\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Payment - Validation Error (invalid currency)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"user-002\",\n  \"amount\": 100.00,\n  \"currency\": \"EURO\",\n  \"description\": \"This should fail - currency must be 3 chars\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "Should return 400 Bad Request - currency must be exactly 3 characters"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments/{{payment_id}}",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "Get a specific payment by UUID - uses the ID saved from the create request"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payments by Sender",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments/sender/{{sender_id}}",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "sender",
+                "{{sender_id}}"
+              ]
+            },
+            "description": "Get all payments for a specific sender"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            },
+            "description": "Should return 404 Not Found"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Inquiry Service",
+      "description": "Inquiry Service endpoints (port 8085) - search and retrieve payment history",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/health",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments (Page 1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all payments with pagination - page 0, 10 results per page"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Payments (Page 2)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments?page=1&size=5",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "size",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/{{payment_id}}",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "Get a specific payment by UUID"
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Sender ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/sender/user-001?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "sender",
+                "user-001"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all payments sent by user-001"
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Receiver ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/receiver/user-002?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "receiver",
+                "user-002"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Status - FRAUD_CHECK",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/status/FRAUD_CHECK?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "status",
+                "FRAUD_CHECK"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Status - APPROVED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/status/APPROVED?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "status",
+                "APPROVED"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Status - REJECTED",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/status/REJECTED?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "status",
+                "REJECTED"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Status - REVIEW",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/status/REVIEW?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "status",
+                "REVIEW"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Sender + Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/sender/user-001/status/FRAUD_CHECK?page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "sender",
+                "user-001",
+                "status",
+                "FRAUD_CHECK"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get payments from user-001 that are in FRAUD_CHECK status"
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Amount Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/amount-range?minAmount=100&maxAmount=5000&page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "amount-range"
+              ],
+              "query": [
+                {
+                  "key": "minAmount",
+                  "value": "100"
+                },
+                {
+                  "key": "maxAmount",
+                  "value": "5000"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get payments with amount between 100 and 5000"
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Description Keyword",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/search?keyword=test&page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "test"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Full text search in payment description"
+          },
+          "response": []
+        },
+        {
+          "name": "Search by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/date-range?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "date-range"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31T23:59:59Z"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get all payments created in 2026"
+          },
+          "response": []
+        },
+        {
+          "name": "Advanced Search - Sender + Currency",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/advanced-search?senderId=user-001&currency=EUR&page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "advanced-search"
+              ],
+              "query": [
+                {
+                  "key": "senderId",
+                  "value": "user-001"
+                },
+                {
+                  "key": "currency",
+                  "value": "EUR"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Advanced search - filter by sender AND currency"
+          },
+          "response": []
+        },
+        {
+          "name": "Advanced Search - All Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/advanced-search?senderId=user-001&status=FRAUD_CHECK&currency=EUR&from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&page=0&size=10",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "advanced-search"
+              ],
+              "query": [
+                {
+                  "key": "senderId",
+                  "value": "user-001"
+                },
+                {
+                  "key": "status",
+                  "value": "FRAUD_CHECK"
+                },
+                {
+                  "key": "currency",
+                  "value": "EUR"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-01-01T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-12-31T23:59:59Z"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Advanced search with all filters combined"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Overall Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/stats",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "stats"
+              ]
+            },
+            "description": "Get overall payment statistics - total count, amounts, by status"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Sender Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/stats/sender/user-001",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "stats",
+                "sender",
+                "user-001"
+              ]
+            },
+            "description": "Get payment statistics for a specific sender"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Fraud Detection Service",
+      "description": "Fraud Detection Service \u2014 async Kafka-driven rule engine.\nOperates via Kafka events; exposes actuator + Swagger endpoints only.",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fraud_service_url}}/api/v1/fraud/health",
+              "host": [
+                "{{fraud_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fraud",
+                "health"
+              ]
+            },
+            "description": "Liveness check for the Fraud Detection Service"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actuator Health (detailed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fraud_service_url}}/actuator/health",
+              "host": [
+                "{{fraud_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Spring Actuator health \u2014 shows DB, Kafka, Redis component status"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Service is UP', () => pm.expect(r.status).to.eql('UP'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actuator Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fraud_service_url}}/actuator/metrics",
+              "host": [
+                "{{fraud_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics"
+              ]
+            },
+            "description": "List all available Micrometer metrics for fraud-detection-service"
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus Metrics Scrape",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fraud_service_url}}/actuator/prometheus",
+              "host": [
+                "{{fraud_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "Prometheus-format metrics \u2014 same endpoint Prometheus scrapes every 15s"
+          },
+          "response": []
+        },
+        {
+          "name": "Kafka Consumer Lag (metrics)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fraud_service_url}}/actuator/metrics/kafka.consumer.fetch.manager.records.lag",
+              "host": [
+                "{{fraud_service_url}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics",
+                "kafka.consumer.fetch.manager.records.lag"
+              ]
+            },
+            "description": "Check consumer lag on payment.initiated topic. Value near 0 = healthy processing"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - End-to-End Flow (Payment + Inquiry)",
+      "description": "Complete end-to-end test flow - run these in order",
+      "item": [
+        {
+          "name": "Step 1 - Create Payment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var response = pm.response.json();",
+                  "pm.collectionVariables.set('payment_id', response.id);",
+                  "pm.test('Payment created', function() { pm.response.to.have.status(201); });",
+                  "console.log('Payment created with ID:', response.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"e2e-user-001\",\n  \"receiverId\": \"e2e-user-002\",\n  \"amount\": 199.99,\n  \"currency\": \"EUR\",\n  \"description\": \"End-to-end test payment\"\n}"
+            },
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Step 2 - Wait 2 seconds then Get Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{payment_service_url}}/api/v1/payments/{{payment_id}}",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "Wait 2 seconds after Step 1 for fraud detection to process, then check status"
+          },
+          "response": []
+        },
+        {
+          "name": "Step 3 - Verify via Inquiry Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/payments/{{payment_id}}",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "Verify the same payment is visible in the Inquiry Service"
+          },
+          "response": []
+        },
+        {
+          "name": "Step 4 - Check Stats Updated",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inquiry_service_url}}/api/v1/inquiry/stats",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "stats"
+              ]
+            },
+            "description": "Verify overall stats have updated with the new payment"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - AI Service (Spring AI)",
+      "description": "PayFlow AI Service \u2014 6 endpoints powered by Spring AI 1.0.0-M6 + OpenAI GPT-4o-mini.\n\nRequires OPENAI_API_KEY set in the service environment.\nSet ai_service_url variable to http://localhost:8087",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/health",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "health"
+              ]
+            },
+            "description": "Liveness check \u2014 no auth required"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('AI service running', () => pm.expect(pm.response.text()).to.include('AI Service is running'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain Fraud - REJECTED (Blacklist)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/fraud/explain",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "fraud",
+                "explain"
+              ]
+            },
+            "description": "AI explains a REJECTED blacklist decision.\nSpring AI pattern: PromptTemplate + BeanOutputConverter\nExpect: riskLevel=CRITICAL, explanation + customerGuidance + complianceNote",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"senderId\": \"blocked-user-001\",\n  \"amount\": 100.0,\n  \"currency\": \"EUR\",\n  \"decision\": \"REJECTED\",\n  \"score\": 1.0,\n  \"triggeredRules\": [\n    \"BLACKLIST_RULE\"\n  ],\n  \"rawReason\": \"Sender blocked-user-001 is on the static blacklist\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has explanation', () => pm.expect(r.explanation).to.be.a('string').and.not.empty);",
+                  "pm.test('Has customer guidance', () => pm.expect(r.customerGuidance).to.be.a('string').and.not.empty);",
+                  "pm.test('Has compliance note', () => pm.expect(r.complianceNote).to.be.a('string').and.not.empty);",
+                  "pm.test('Risk level is CRITICAL', () => pm.expect(r.riskLevel).to.eql('CRITICAL'));",
+                  "console.log('Explanation:', r.explanation);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain Fraud - REVIEW (High Amount)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/fraud/explain",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "fraud",
+                "explain"
+              ]
+            },
+            "description": "AI explains a REVIEW decision for a high-value payment.\nExpect: riskLevel=HIGH or MEDIUM",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"senderId\": \"user-001\",\n  \"amount\": 15000.0,\n  \"currency\": \"EUR\",\n  \"decision\": \"REVIEW\",\n  \"score\": 0.55,\n  \"triggeredRules\": [\n    \"AMOUNT_RULE\"\n  ],\n  \"rawReason\": \"Transaction amount EUR 15000.00 exceeds high value threshold\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has explanation', () => pm.expect(r.explanation).to.be.a('string').and.not.empty);",
+                  "pm.test('Risk level is HIGH or MEDIUM', () => pm.expect(['HIGH','MEDIUM']).to.include(r.riskLevel));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain Fraud - REJECTED (Velocity + Amount)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/fraud/explain",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "fraud",
+                "explain"
+              ]
+            },
+            "description": "Multi-rule REJECTED payment \u2014 tests combined rule explanation",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"senderId\": \"user-003\",\n  \"amount\": 75000.0,\n  \"currency\": \"EUR\",\n  \"decision\": \"REJECTED\",\n  \"score\": 0.95,\n  \"triggeredRules\": [\n    \"AMOUNT_RULE\",\n    \"VELOCITY_RULE\"\n  ],\n  \"rawReason\": \"Transaction amount EUR 75000.00 exceeds very high value threshold; Velocity limit exceeded\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has explanation', () => pm.expect(r.explanation).to.be.a('string').and.not.empty);",
+                  "pm.test('Risk level HIGH or CRITICAL', () => pm.expect(['HIGH','CRITICAL']).to.include(r.riskLevel));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Explain Fraud - APPROVED (Low Risk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/fraud/explain",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "fraud",
+                "explain"
+              ]
+            },
+            "description": "AI explains an APPROVED low-risk payment \u2014 positive messaging test",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"senderId\": \"user-001\",\n  \"amount\": 50.0,\n  \"currency\": \"EUR\",\n  \"decision\": \"APPROVED\",\n  \"score\": 0.0,\n  \"triggeredRules\": [],\n  \"rawReason\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has explanation', () => pm.expect(r.explanation).to.be.a('string').and.not.empty);",
+                  "pm.test('Risk level LOW', () => pm.expect(r.riskLevel).to.eql('LOW'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assess Risk - Small Amount (LOW risk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/payment/assess-risk",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "payment",
+                "assess-risk"
+              ]
+            },
+            "description": "Pre-submission risk check for a small payment.\nSpring AI pattern: .entity(PaymentRiskResponse.class)\nExpect: LOW risk, APPROVED prediction",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"user-002\",\n  \"amount\": 50.0,\n  \"currency\": \"EUR\",\n  \"description\": \"Coffee and lunch payment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has risk rating', () => pm.expect(r.riskRating).to.be.a('string').and.not.empty);",
+                  "pm.test('Has predicted score', () => pm.expect(r.predictedScore).to.be.a('number'));",
+                  "pm.test('Has narrative', () => pm.expect(r.narrative).to.be.a('string').and.not.empty);",
+                  "pm.test('Predicted APPROVED', () => pm.expect(r.predictedDecision).to.eql('APPROVED'));",
+                  "console.log('Risk rating:', r.riskRating, '| Score:', r.predictedScore);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assess Risk - High Value (HIGH risk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/payment/assess-risk",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "payment",
+                "assess-risk"
+              ]
+            },
+            "description": "Pre-submission risk check for EUR 15,000 payment.\nExpect: HIGH risk, REVIEW prediction",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-abc-123\",\n  \"receiverId\": \"user-xyz-456\",\n  \"amount\": 15000.0,\n  \"currency\": \"EUR\",\n  \"description\": \"Quarterly supplier invoice Q1-2024\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has risk rating', () => pm.expect(r.riskRating).to.be.a('string'));",
+                  "pm.test('Risk is HIGH or CRITICAL', () => pm.expect(['HIGH','CRITICAL','MEDIUM']).to.include(r.riskRating));",
+                  "pm.test('Has risk factors', () => pm.expect(r.riskFactors).to.be.an('array'));",
+                  "pm.test('Has recommendations', () => pm.expect(r.recommendations).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assess Risk - Very High Value (CRITICAL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/payment/assess-risk",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "payment",
+                "assess-risk"
+              ]
+            },
+            "description": "Pre-submission check for EUR 75,000 payment to unknown receiver.\nExpect: CRITICAL risk, REJECTED prediction",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"receiverId\": \"supplier-offshore-999\",\n  \"amount\": 75000.0,\n  \"currency\": \"EUR\",\n  \"description\": \"Large one-time equipment purchase\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Risk HIGH or CRITICAL', () => pm.expect(['HIGH','CRITICAL']).to.include(r.riskRating));",
+                  "pm.test('Predicted REVIEW or REJECTED', () => pm.expect(['REVIEW','REJECTED']).to.include(r.predictedDecision));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assess Risk - Blacklisted Sender",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/payment/assess-risk",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "payment",
+                "assess-risk"
+              ]
+            },
+            "description": "Risk assessment for a known blacklisted sender.\nExpect: CRITICAL, REJECTED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"blocked-user-001\",\n  \"receiverId\": \"user-002\",\n  \"amount\": 100.0,\n  \"currency\": \"EUR\",\n  \"description\": \"Test payment from blacklisted user\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Is CRITICAL risk', () => pm.expect(r.riskRating).to.eql('CRITICAL'));",
+                  "pm.test('Predicted REJECTED', () => pm.expect(r.predictedDecision).to.eql('REJECTED'));",
+                  "pm.test('Score >= 0.8', () => pm.expect(r.predictedScore).to.be.at.least(0.8));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - Ask about BLACKLIST_RULE",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/chat",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Start a chat session \u2014 ask about fraud rules.\nSpring AI pattern: MessageChatMemoryAdvisor\nSessionId persists conversation memory.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What is BLACKLIST_RULE and how does it affect my payment?\",\n  \"sessionId\": \"session-demo-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has reply', () => pm.expect(r.reply).to.be.a('string').and.not.empty);",
+                  "pm.test('Has sessionId', () => pm.expect(r.sessionId).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('chat_session_id', r.sessionId);",
+                  "console.log('Session ID saved:', r.sessionId);",
+                  "console.log('AI reply:', r.reply.substring(0, 150) + '...');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - Follow-up (multi-turn memory)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/chat",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Follow-up question using same session \u2014 tests MessageChatMemoryAdvisor.\nThe AI remembers the previous question about BLACKLIST_RULE.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"So if my sender is on the blacklist, what should I do to resolve it?\",\n  \"sessionId\": \"{{chat_session_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has reply', () => pm.expect(r.reply).to.be.a('string').and.not.empty);",
+                  "pm.test('Same session ID', () => pm.expect(r.sessionId).to.eql(pm.collectionVariables.get('chat_session_id')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - Ask about velocity limits",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/chat",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "New session \u2014 asks about velocity limits.\nSessionId is null so a new conversation is started.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What are the transaction velocity limits per minute and per hour?\",\n  \"sessionId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has reply', () => pm.expect(r.reply).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - Ask why payment is in FRAUD_CHECK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/chat",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat"
+              ]
+            },
+            "description": "Customer support scenario \u2014 payment stuck in FRAUD_CHECK",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"My payment has been in FRAUD_CHECK status for 5 minutes. Is that normal?\",\n  \"sessionId\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has reply', () => pm.expect(r.reply).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chat - Stream Response (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/chat/stream?message=Explain+the+PayFlow+fraud+detection+rules+in+detail&sessionId=stream-session-001",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "chat",
+                "stream"
+              ],
+              "query": [
+                {
+                  "key": "message",
+                  "value": "Explain the PayFlow fraud detection rules in detail"
+                },
+                {
+                  "key": "sessionId",
+                  "value": "stream-session-001"
+                }
+              ]
+            },
+            "description": "Streams the AI response token-by-token via Server-Sent Events.\nSpring AI pattern: .stream().content() -> Flux<String>\n\nNote: Postman shows SSE as a single body. Use curl for real streaming:\ncurl -N \"http://localhost:8087/api/v1/ai/chat/stream?message=Hello\""
+          },
+          "response": []
+        },
+        {
+          "name": "Insights - Healthy Portfolio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/insights",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "insights"
+              ]
+            },
+            "description": "Portfolio with ~3% rejection rate \u2014 expect HEALTHY status.\nSpring AI pattern: PromptTemplate (12 vars via HashMap) + .entity()",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalPayments\": 1024,\n  \"approvedPayments\": 950,\n  \"rejectedPayments\": 30,\n  \"pendingPayments\": 20,\n  \"reviewPayments\": 24,\n  \"totalAmount\": 4875000.0,\n  \"averageAmount\": 4760.74,\n  \"maxAmount\": 45000.0,\n  \"minAmount\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has portfolio health', () => pm.expect(r.portfolioHealth).to.be.a('string').and.not.empty);",
+                  "pm.test('Has key findings', () => pm.expect(r.keyFindings).to.be.an('array').and.not.empty);",
+                  "pm.test('Has recommendations', () => pm.expect(r.recommendations).to.be.an('array').and.not.empty);",
+                  "pm.test('Has executive summary', () => pm.expect(r.executiveSummary).to.be.a('string').and.not.empty);",
+                  "pm.test('Portfolio is HEALTHY or ATTENTION', () => pm.expect(['HEALTHY','ATTENTION']).to.include(r.portfolioHealth));",
+                  "console.log('Portfolio health:', r.portfolioHealth);",
+                  "console.log('Rejection rate:', r.rejectionRatePercent + '%');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Insights - High Rejection Rate (ALERT)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/insights",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "insights"
+              ]
+            },
+            "description": "Portfolio with 20% rejection rate \u2014 expect ALERT or CRITICAL",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalPayments\": 500,\n  \"approvedPayments\": 350,\n  \"rejectedPayments\": 100,\n  \"pendingPayments\": 25,\n  \"reviewPayments\": 25,\n  \"totalAmount\": 1250000.0,\n  \"averageAmount\": 2500.0,\n  \"maxAmount\": 75000.0,\n  \"minAmount\": 10.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has portfolio health', () => pm.expect(r.portfolioHealth).to.be.a('string'));",
+                  "pm.test('Health is ALERT or CRITICAL', () => pm.expect(['ALERT','CRITICAL']).to.include(r.portfolioHealth));",
+                  "pm.test('Rejection rate > 15%', () => pm.expect(r.rejectionRatePercent).to.be.at.least(15));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Insights - Feed from Inquiry Stats (example)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/insights",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "insights"
+              ]
+            },
+            "description": "Use the output from GET /api/v1/inquiry/stats directly as input here.\nTip: Run 'Get Overall Statistics' first, copy the response body, paste here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalPayments\": 1024,\n  \"approvedPayments\": 850,\n  \"rejectedPayments\": 95,\n  \"pendingPayments\": 42,\n  \"reviewPayments\": 37,\n  \"totalAmount\": 4875000.0,\n  \"averageAmount\": 4760.74,\n  \"maxAmount\": 75000.0,\n  \"minAmount\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has portfolio health', () => pm.expect(r.portfolioHealth).to.be.a('string'));",
+                  "pm.test('Has all fields', () => {",
+                  "    pm.expect(r.keyFindings).to.be.an('array');",
+                  "    pm.expect(r.recommendations).to.be.an('array');",
+                  "    pm.expect(r.executiveSummary).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sender Summary - Trusted User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/sender/summarise",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "sender",
+                "summarise"
+              ]
+            },
+            "description": "AI generates a behavioural profile for a trusted sender.\nSpring AI pattern: .user(lambda).param() \u2014 named parameter injection.\nExpect: riskProfile=TRUSTED or STANDARD",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"user-001\",\n  \"totalPayments\": 42,\n  \"totalAmount\": 18500.0,\n  \"statusBreakdown\": {\n    \"COMPLETED\": 38,\n    \"APPROVED\": 2,\n    \"REVIEW\": 2\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has senderId', () => pm.expect(r.senderId).to.be.a('string'));",
+                  "pm.test('Has risk profile', () => pm.expect(r.riskProfile).to.be.a('string').and.not.empty);",
+                  "pm.test('Has behaviour summary', () => pm.expect(r.behaviourSummary).to.be.a('string').and.not.empty);",
+                  "pm.test('Has patterns', () => pm.expect(r.patterns).to.be.an('array').and.not.empty);",
+                  "pm.test('Has recommendations', () => pm.expect(r.recommendations).to.be.an('array'));",
+                  "pm.test('Profile is TRUSTED or STANDARD', () => pm.expect(['TRUSTED','STANDARD']).to.include(r.riskProfile));",
+                  "console.log('Risk profile:', r.riskProfile);",
+                  "console.log('Summary:', r.behaviourSummary);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sender Summary - High Risk User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/sender/summarise",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "sender",
+                "summarise"
+              ]
+            },
+            "description": "Profile for a high-risk sender with many rejections.\nExpect: riskProfile=HIGH_RISK or ELEVATED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"blocked-user-001\",\n  \"totalPayments\": 15,\n  \"totalAmount\": 500.0,\n  \"statusBreakdown\": {\n    \"REJECTED\": 12,\n    \"REVIEW\": 3\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has risk profile', () => pm.expect(r.riskProfile).to.be.a('string'));",
+                  "pm.test('Profile is HIGH_RISK or ELEVATED', () => pm.expect(['HIGH_RISK','ELEVATED']).to.include(r.riskProfile));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sender Summary - New User (minimal history)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/sender/summarise",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "sender",
+                "summarise"
+              ]
+            },
+            "description": "Profile for a new user with minimal transaction history",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"new-user-999\",\n  \"totalPayments\": 2,\n  \"totalAmount\": 150.0,\n  \"statusBreakdown\": {\n    \"COMPLETED\": 1,\n    \"FRAUD_CHECK\": 1\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has risk profile', () => pm.expect(r.riskProfile).to.be.a('string'));",
+                  "pm.test('Has behaviour summary', () => pm.expect(r.behaviourSummary).to.be.a('string').and.not.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - End-to-End AI + Payment Flow",
+      "description": "Complete flow: AI risk check \u2192 create payment \u2192 fraud result \u2192 AI explanation \u2192 insights\nRun requests in order. Steps 1-5 build on each other.",
+      "item": [
+        {
+          "name": "Step 1 - AI Pre-Check (assess risk first)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/payment/assess-risk",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "payment",
+                "assess-risk"
+              ]
+            },
+            "description": "STEP 1: Ask AI to assess risk before submitting the payment",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"e2e-user-001\",\n  \"receiverId\": \"e2e-user-002\",\n  \"amount\": 12000.0,\n  \"currency\": \"EUR\",\n  \"description\": \"End-to-end AI flow test payment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.collectionVariables.set('e2e_predicted_decision', r.predictedDecision);",
+                  "pm.collectionVariables.set('e2e_risk_rating', r.riskRating);",
+                  "console.log('AI predicts:', r.predictedDecision, '| Risk:', r.riskRating);",
+                  "pm.test('Has prediction', () => pm.expect(r.predictedDecision).to.be.a('string'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 2 - Submit Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{payment_service_url}/api/v1/payments",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            },
+            "description": "STEP 2: Submit the actual payment. Saves payment_id for subsequent steps.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderId\": \"e2e-user-001\",\n  \"receiverId\": \"e2e-user-002\",\n  \"amount\": 12000.0,\n  \"currency\": \"EUR\",\n  \"description\": \"End-to-end AI flow test payment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var r = pm.response.json();",
+                  "pm.collectionVariables.set('payment_id', r.id);",
+                  "pm.collectionVariables.set('e2e_sender_id', r.senderId);",
+                  "console.log('Payment created:', r.id, '| Initial status:', r.status);",
+                  "pm.test('Payment has ID', () => pm.expect(r.id).to.not.be.null);",
+                  "pm.test('Initial status correct', () => pm.expect(['PENDING','FRAUD_CHECK']).to.include(r.status));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 3 - Wait and Check Fraud Result (poll status)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{payment_service_url}/api/v1/payments/{payment_id}",
+              "host": [
+                "{{payment_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "STEP 3: Wait 3-5 seconds after Step 2, then run this to check fraud result.\nStatus should have moved from FRAUD_CHECK to APPROVED/REVIEW/REJECTED."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.collectionVariables.set('e2e_final_status', r.status);",
+                  "pm.collectionVariables.set('e2e_fraud_score', r.fraudScore || '0.0');",
+                  "console.log('Payment status:', r.status, '| Fraud score:', r.fraudScore);",
+                  "pm.test('Status resolved', () => pm.expect(['APPROVED','REVIEW','REJECTED','FRAUD_CHECK']).to.include(r.status));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 4 - AI Explains the Fraud Decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{ai_service_url}}/api/v1/ai/fraud/explain",
+              "host": [
+                "{{ai_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ai",
+                "fraud",
+                "explain"
+              ]
+            },
+            "description": "STEP 4: Feed the real fraud result from Step 3 into the AI for explanation.\nReplace 'decision' with the actual status from Step 3 if needed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"{{payment_id}}\",\n  \"senderId\": \"e2e-user-001\",\n  \"amount\": 12000.0,\n  \"currency\": \"EUR\",\n  \"decision\": \"{{e2e_final_status}}\",\n  \"score\": 0.55,\n  \"triggeredRules\": [\n    \"AMOUNT_RULE\"\n  ],\n  \"rawReason\": \"Transaction amount EUR 12000.00 exceeds high value threshold\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has explanation', () => pm.expect(r.explanation).to.be.a('string').and.not.empty);",
+                  "console.log('AI Risk Level:', r.riskLevel);",
+                  "console.log('Customer message:', r.explanation);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 5 - Verify via Inquiry Service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{inquiry_service_url}/api/v1/inquiry/payments/{payment_id}",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "payments",
+                "{{payment_id}}"
+              ]
+            },
+            "description": "STEP 5: Verify the payment is visible and has correct final status in Inquiry Service"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Payment found', () => pm.expect(r.id).to.eql(pm.collectionVariables.get('payment_id')));",
+                  "console.log('Inquiry status:', r.status, '| Fraud score:', r.fraudScore);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 6 - Get Stats and Feed to AI Insights",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{inquiry_service_url}/api/v1/inquiry/stats",
+              "host": [
+                "{{inquiry_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "inquiry",
+                "stats"
+              ]
+            },
+            "description": "STEP 6: Get latest portfolio stats. Copy the response and use it as input for the AI Insights endpoint."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var r = pm.response.json();",
+                  "pm.test('Has total payments', () => pm.expect(r.totalPayments).to.be.a('number'));",
+                  "console.log('Total payments:', r.totalPayments, '| Rejected:', r.rejectedPayments);",
+                  "console.log('NEXT: Copy this response body and POST to /api/v1/ai/insights');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
