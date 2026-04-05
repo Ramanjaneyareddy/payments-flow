@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: ai-service
+  jpa:
+    properties:
+      hibernate:
+        type:
+          preferred_uuid_jdbc_type: CHAR
+
+  # ─── Spring AI — OpenAI configuration ───────────────────────────────
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini          # cost-efficient, fast; swap to gpt-4o for higher quality
+          temperature: 0.3            # low temperature = deterministic, factual responses
+          max-tokens: 1024
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+server:
+  port: 8087
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+
+# PayFlow service URLs — ai-service calls these to fetch live data
+payflow:
+  services:
+    payment-service-url: ${PAYMENT_SERVICE_URL:http://localhost:8081}
+    inquiry-service-url: ${INQUIRY_SERVICE_URL:http://localhost:8085}
+
+logging:
+  level:
+    com.payflow: DEBUG
+    org.springframework.ai: INFO
