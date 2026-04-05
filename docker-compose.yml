@@ -1,6 +1,5 @@
-
 # ─────────────────────────────────────────────────────────────────────
-# PayFlow — Complete Docker Compose
+# PayFlow — Complete Docker Compose (Remote Images)
 #
 # Services:
 #   Infrastructure : mysql, redis, zookeeper, kafka, kafka-ui,
@@ -122,11 +121,6 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-  #  depends_on:
-  #    - payment-service
-  #    - fraud-detection-service
-  #    - inquiry-service
-  #    - ai-service
 
   grafana:
     image: grafana/grafana:latest
@@ -138,12 +132,10 @@ services:
     depends_on:
       - prometheus
 
-  # ── Application Services ─────────────────────────────────────────────
+  # ── Application Services (Updated to Remote Images) ──────────────────
 
   payment-service:
-    build:
-      context: ./payment-service
-      dockerfile: Dockerfile
+    image: srnr4u/payment-service:latest
     container_name: payflow-payment-service
     depends_on:
       mysql:
@@ -165,9 +157,7 @@ services:
       start_period: 60s
 
   fraud-detection-service:
-    build:
-      context: ./fraud-detection-service
-      dockerfile: Dockerfile
+    image: srnr4u/fraud-detection-service:latest
     container_name: payflow-fraud-detection-service
     depends_on:
       kafka:
@@ -188,9 +178,7 @@ services:
       start_period: 60s
 
   inquiry-service:
-    build:
-      context: ./inquiry-service
-      dockerfile: Dockerfile
+    image: srnr4u/inquiry-service:latest
     container_name: payflow-inquiry-service
     depends_on:
       mysql:
@@ -212,9 +200,7 @@ services:
       start_period: 60s
 
   ai-service:
-    build:
-      context: ./ai-service
-      dockerfile: Dockerfile
+    image: srnr4u/ai-service:latest
     container_name: payflow-ai-service
     depends_on:
       payment-service:
