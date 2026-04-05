@@ -1,4 +1,4 @@
-name: PayFlow CI/CD
+name: Payments-Flow CI/CD
 
 on:
   push:
@@ -54,7 +54,7 @@ jobs:
 
       # ── Payment Service ──────────────────────────────────────────────
       - name: Build and test Payment Service
-        working-directory: ./payflow/payment-service
+        working-directory: ./payment-service
         env:
           DB_USERNAME: payflow
           DB_PASSWORD: payflow
@@ -67,11 +67,11 @@ jobs:
         if: always()
         with:
           name: payment-test-results
-          path: payflow/payment-service/target/surefire-reports/
+          path: payment-service/target/surefire-reports/
 
       # ── Fraud Detection Service ──────────────────────────────────────
       - name: Build and test Fraud Detection Service
-        working-directory: ./payflow/fraud-detection-service
+        working-directory: ./fraud-detection-service
         env:
           KAFKA_BOOTSTRAP_SERVERS: localhost:9092
           REDIS_HOST: localhost
@@ -83,11 +83,11 @@ jobs:
         if: always()
         with:
           name: fraud-test-results
-          path: payflow/fraud-detection-service/target/surefire-reports/
+          path: fraud-detection-service/target/surefire-reports/
 
       # ── Inquiry Service ──────────────────────────────────────────────
       - name: Build and test Inquiry Service
-        working-directory: ./payflow/inquiry-service
+        working-directory: ./inquiry-service
         env:
           DB_USERNAME: payflow
           DB_PASSWORD: payflow
@@ -100,12 +100,11 @@ jobs:
         if: always()
         with:
           name: inquiry-test-results
-          path: payflow/inquiry-service/target/surefire-reports/
+          path: inquiry-service/target/surefire-reports/
 
       # ── AI Service ───────────────────────────────────────────────────
-      # Note: unit tests use Mockito — no real OpenAI call is made in CI
       - name: Build and test AI Service
-        working-directory: ./payflow/ai-service
+        working-directory: ./ai-service
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: mvn -B -ntp clean verify
@@ -114,8 +113,8 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ai-test-results
-          path: payflow/ai-service/target/surefire-reports/
+          name: ai-service-test-results
+          path: ai-service/target/surefire-reports/
 
   # ─────────────────────────────────────────────
   # Job 2 – Build & Push Docker Images (main only)
@@ -142,7 +141,7 @@ jobs:
       - name: Build and push Payment Service image
         uses: docker/build-push-action@v6
         with:
-          context: ./payflow/payment-service
+          context: ./payment-service
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/payflow-payment-service:latest
@@ -153,7 +152,7 @@ jobs:
       - name: Build and push Fraud Detection Service image
         uses: docker/build-push-action@v6
         with:
-          context: ./payflow/fraud-detection-service
+          context: ./fraud-detection-service
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/payflow-fraud-service:latest
@@ -164,7 +163,7 @@ jobs:
       - name: Build and push Inquiry Service image
         uses: docker/build-push-action@v6
         with:
-          context: ./payflow/inquiry-service
+          context: ./inquiry-service
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/payflow-inquiry-service:latest
@@ -175,7 +174,7 @@ jobs:
       - name: Build and push AI Service image
         uses: docker/build-push-action@v6
         with:
-          context: ./payflow/ai-service
+          context: ./ai-service
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/payflow-ai-service:latest
