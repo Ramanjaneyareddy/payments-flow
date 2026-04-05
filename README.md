@@ -497,6 +497,15 @@ CREATE INDEX idx_payments_created_at  ON payments (created_at DESC);
 ```
 
 ---
+## Screenshots:
+![Grafana Dashboard](./screenshots/grafana_dashboard-flow.jpeg)
+![AI_Service](./screenshots/ai-service_chat_response.png)
+![AI_Service](./screenshots/ai-service_chat_stream_response.png)
+![Postman](./screenshots/postman-inquiry-endpoint-success.png)
+![Postman](./screenshots/postman_payments_create_success.png)
+![Postman](./screenshots/postman_401_Authorization_code.png)
+
+
 
 ## Observability
 
