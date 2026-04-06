@@ -1,6 +1,6 @@
 # PayFlow — Cloud-Native Payments Platform
 
-![CI/CD](https://github.com/Ramanjaneyareddy/payflow-source/actions/workflows/ci-cd.yml/badge.svg)
+![CI/CD](https://github.com/Ramanjaneyareddy/payments-flow/actions/workflows/ci-cd.yml/badge.svg)
 ![Java 17](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-6DB33F?logo=springboot&logoColor=white)
 ![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0.0-6DB33F?logo=spring&logoColor=white)
@@ -334,8 +334,8 @@ POST /api/v1/payments
 ### Option A — Full Stack (recommended)
 
 ```bash
-git clone https://github.com/Ramanjaneyareddy/payflow-source.git
-cd payflow-source/payflow
+git clone https://github.com/Ramanjaneyareddy/payments-flow.git
+cd payyments-flow
 
 # Set your OpenAI API key
 export OPENAI_API_KEY=sk-...
@@ -689,7 +689,7 @@ Senior Java Backend Engineer | 13+ years experience
 
 Specialising in cloud-native microservices, event-driven architecture, Spring Boot, Apache Kafka, and Spring AI.
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://www.linkedin.com/in/ramanjaneya-reddy)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?logo=linkedin)](https://www.linkedin.com/in/ramanjaneyareddys)
 [![GitHub](https://img.shields.io/badge/GitHub-Profile-181717?logo=github)](https://github.com/Ramanjaneyareddy)
 
 ---
