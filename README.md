@@ -1,4 +1,4 @@
-# PayFlow — Cloud-Native Payments Platform
+# Payments-Flow — Cloud-Native Payments Platform
 
 ![CI/CD](https://github.com/Ramanjaneyareddy/payments-flow/actions/workflows/ci-cd.yml/badge.svg)
 ![Java 17](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
