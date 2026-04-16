@@ -1,6 +1,8 @@
 package com.payflow.payment.mapper;
 
 import com.payflow.payment.domain.Payment;
+import com.payflow.payment.domain.PaymentStatus;
+import com.payflow.payment.dto.PaymentRequest;
 import com.payflow.payment.dto.PaymentResponse;
 import org.springframework.stereotype.Component;
 
@@ -21,5 +23,16 @@ public class PaymentMapper {
             payment.getCreatedAt(),
             payment.getUpdatedAt()
         );
+    }
+
+    public Payment toEntity(PaymentRequest request) {
+        return Payment.builder()
+                .senderId(request.senderId())
+                .receiverId(request.receiverId())
+                .amount(request.amount())
+                .currency(request.currency())
+                .description(request.description())
+                .status(PaymentStatus.PENDING)
+                .build();
     }
 }
