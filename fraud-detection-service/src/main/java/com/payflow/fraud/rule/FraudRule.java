@@ -13,10 +13,10 @@ public interface FraudRule {
     String getRuleName();
 
     record RuleResult(
-        String ruleName,
-        boolean triggered,
-        double riskScore,
-        String reason
+            String ruleName,
+            boolean triggered,
+            double riskScore,
+            String reason
     ) {
         public static RuleResult pass(String ruleName) {
             return new RuleResult(ruleName, false, 0.0, null);

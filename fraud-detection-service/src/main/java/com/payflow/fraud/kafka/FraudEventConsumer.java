@@ -8,9 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -21,41 +18,29 @@ public class FraudEventConsumer {
     private final FraudEngine fraudEngine;
     private final KafkaTemplate<String, FraudResult> kafkaTemplate;
 
-    // FIX #9: was hardcoded "fraud.result" — now injected from config
     @Value("${payflow.kafka.topics.fraud-result}")
-    private String fraudResultTopic;
+    private String resultTopic;
 
     @KafkaListener(
-        topics      = "${payflow.kafka.topics.payment-initiated}",
-        groupId     = "${spring.kafka.consumer.group-id}",
-        concurrency = "3"
+            topics = "${payflow.kafka.topics.payment-initiated}",
+            concurrency = "3"
     )
-    public void onPaymentInitiated(
-            @Payload  PaymentEvent event,
-            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET)             long offset) {
-
-        log.info("Received payment event {} from partition {} offset {}",
-            event.paymentId(), partition, offset);
+    public void onPaymentInitiated(PaymentEvent event) {
+        log.info("Evaluating fraud for payment: {}", event.paymentId());
 
         try {
             FraudResult result = fraudEngine.evaluate(event);
+            String key = event.paymentId().toString();
 
-            kafkaTemplate.send(fraudResultTopic, event.paymentId().toString(), result)
-                .whenComplete((sendResult, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to publish fraud result for payment {}: {}",
-                            event.paymentId(), ex.getMessage());
-                    } else {
-                        log.info("Published fraud result {} for payment {} to topic {}",
-                            result.decision(), event.paymentId(), fraudResultTopic);
-                    }
-                });
+            kafkaTemplate.send(resultTopic, key, result)
+                    .whenComplete((sr, ex) -> {
+                        if (ex != null) {
+                            log.error("Kafka publish error for ID {}: {}", key, ex.getMessage());
+                        }
+                    });
 
         } catch (Exception e) {
-            log.error("Error processing fraud check for payment {}: {}",
-                event.paymentId(), e.getMessage(), e);
-            // TODO: route to Dead Letter Queue (DLQ) for retry / alerting
+            log.error("Fraud processing failed for ID {}: {}", event.paymentId(), e.getMessage());
         }
     }
 }

@@ -2,36 +2,30 @@ package com.payflow.fraud.rule;
 
 import com.payflow.fraud.event.PaymentEvent;
 import org.springframework.stereotype.Component;
+import java.math.BigDecimal;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 
 @Component
 public class PatternRule implements FraudRule {
 
-    private static final int ODD_HOUR_START = 1; // 1 AM
-    private static final int ODD_HOUR_END   = 5; // 5 AM
+    private static final ZoneId TZ_AMS = ZoneId.of("Europe/Amsterdam");
+    private static final BigDecimal ROUND_FACTOR = BigDecimal.valueOf(1000);
+    private static final BigDecimal LARGE_ROUND_THRESHOLD = BigDecimal.valueOf(5000);
 
     @Override
     public RuleResult evaluate(PaymentEvent event) {
-        ZonedDateTime eventTime = event.occurredAt()
-            .atZone(ZoneId.of("Europe/Amsterdam"));
-
-        int hour = eventTime.getHour();
-
-        // Flag transactions between 1AM - 5AM Amsterdam time
-        if (hour >= ODD_HOUR_START && hour <= ODD_HOUR_END) {
-            return RuleResult.flag(getRuleName(), 0.4,
-                "Transaction initiated at unusual hour: " + hour + ":00 Amsterdam time");
+        // 1. Time-based anomaly (1 AM - 5 AM)
+        int hour = event.occurredAt().atZone(TZ_AMS).getHour();
+        if (hour >= 1 && hour <= 5) {
+            return RuleResult.flag(getRuleName(), 0.4, "Off-hours transaction: " + hour + ":00 AMS");
         }
 
-        // Flag round-number large amounts (common in structuring fraud)
-        var amount = event.amount();
-        if (amount.scale() == 0 || amount.remainder(java.math.BigDecimal.valueOf(1000))
-                .compareTo(java.math.BigDecimal.ZERO) == 0) {
-            if (amount.compareTo(java.math.BigDecimal.valueOf(5000)) >= 0) {
-                return RuleResult.flag(getRuleName(), 0.3,
-                    "Suspiciously round large amount: €" + amount);
-            }
+        // 2. Large round-number check
+        BigDecimal amount = event.amount();
+        boolean isRound = amount.remainder(ROUND_FACTOR).compareTo(BigDecimal.ZERO) == 0;
+
+        if (isRound && amount.compareTo(LARGE_ROUND_THRESHOLD) >= 0) {
+            return RuleResult.flag(getRuleName(), 0.3, "Large round-number pattern: " + amount);
         }
 
         return RuleResult.pass(getRuleName());

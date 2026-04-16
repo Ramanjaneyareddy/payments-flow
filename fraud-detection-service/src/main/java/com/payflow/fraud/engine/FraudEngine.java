@@ -21,46 +21,27 @@ public class FraudEngine {
     private final List<FraudRule> rules;
 
     public FraudResult evaluate(PaymentEvent event) {
-        log.info("Evaluating fraud for payment {} amount {} {}",
-            event.paymentId(), event.amount(), event.currency());
+        log.info("Processing fraud check for payment: {}", event.paymentId());
 
-        // Run all rules
-        List<RuleResult> results = rules.stream()
-            .map(rule -> rule.evaluate(event))
-            .toList();
+        List<RuleResult> triggered = rules.stream()
+                .map(rule -> rule.evaluate(event))
+                .filter(RuleResult::triggered)
+                .toList();
 
-        // Collect triggered rules
-        List<String> triggeredRules = results.stream()
-            .filter(RuleResult::triggered)
-            .map(RuleResult::ruleName)
-            .toList();
+        double maxScore = triggered.stream()
+                .mapToDouble(RuleResult::riskScore)
+                .max()
+                .orElse(0.0);
 
-        // Aggregate score — take maximum risk score across all rules
-        double aggregatedScore = results.stream()
-            .mapToDouble(RuleResult::riskScore)
-            .max()
-            .orElse(0.0);
-
-        // Build reason from triggered rules
-        String reason = results.stream()
-            .filter(RuleResult::triggered)
-            .map(RuleResult::reason)
-            .findFirst()
-            .orElse(null);
-
-        // Make decision
-        FraudResult.FraudDecision decision = determineDecision(aggregatedScore);
-
-        log.info("Fraud evaluation complete for payment {}: score={}, decision={}, triggeredRules={}",
-            event.paymentId(), aggregatedScore, decision, triggeredRules);
+        FraudResult.FraudDecision decision = determineDecision(maxScore);
 
         return new FraudResult(
-            event.paymentId(),
-            decision,
-            aggregatedScore,
-            triggeredRules,
-            reason,
-            Instant.now()
+                event.paymentId(),
+                decision,
+                maxScore,
+                triggered.stream().map(RuleResult::ruleName).toList(),
+                triggered.stream().map(RuleResult::reason).findFirst().orElse("No risks detected"),
+                Instant.now()
         );
     }
 

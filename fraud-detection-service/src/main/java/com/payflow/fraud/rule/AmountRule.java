@@ -7,21 +7,19 @@ import java.math.BigDecimal;
 @Component
 public class AmountRule implements FraudRule {
 
-    private static final BigDecimal HIGH_VALUE_THRESHOLD    = new BigDecimal("10000.00");
-    private static final BigDecimal VERY_HIGH_VALUE_THRESHOLD = new BigDecimal("50000.00");
+    private static final BigDecimal THRESHOLD_HIGH = BigDecimal.valueOf(10000);
+    private static final BigDecimal THRESHOLD_CRITICAL = BigDecimal.valueOf(50000);
 
     @Override
     public RuleResult evaluate(PaymentEvent event) {
         BigDecimal amount = event.amount();
 
-        if (amount.compareTo(VERY_HIGH_VALUE_THRESHOLD) >= 0) {
-            return RuleResult.flag(getRuleName(), 0.9,
-                "Transaction amount €" + amount + " exceeds very high value threshold");
+        if (amount.compareTo(THRESHOLD_CRITICAL) >= 0) {
+            return RuleResult.flag(getRuleName(), 0.9, "Very high value transaction: " + amount);
         }
 
-        if (amount.compareTo(HIGH_VALUE_THRESHOLD) >= 0) {
-            return RuleResult.flag(getRuleName(), 0.5,
-                "Transaction amount €" + amount + " exceeds high value threshold");
+        if (amount.compareTo(THRESHOLD_HIGH) >= 0) {
+            return RuleResult.flag(getRuleName(), 0.5, "High value transaction: " + amount);
         }
 
         return RuleResult.pass(getRuleName());

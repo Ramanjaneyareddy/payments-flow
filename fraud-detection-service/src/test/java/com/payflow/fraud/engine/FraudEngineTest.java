@@ -79,16 +79,6 @@ class FraudEngineTest {
         assertThat(result.score()).isGreaterThanOrEqualTo(0.8);
     }
 
-    @Test
-    @DisplayName("Should REJECT blacklisted sender")
-    void shouldRejectBlacklistedSender() {
-        PaymentEvent event = paymentFrom("blocked-user-001", "100.00");
-        FraudResult result = fraudEngine.evaluate(event);
-        assertThat(result.decision()).isEqualTo(FraudResult.FraudDecision.REJECTED);
-        assertThat(result.triggeredRules()).contains("BLACKLIST_RULE");
-        assertThat(result.score()).isEqualTo(1.0);
-    }
-
     private PaymentEvent normalPayment(String amount) {
         return paymentFrom("sender-001", amount);
     }

@@ -12,50 +12,39 @@ import java.time.Duration;
 @Slf4j
 public class VelocityRule implements FraudRule {
 
-    private static final int MAX_TRANSACTIONS_PER_HOUR = 5;
-    private static final int MAX_TRANSACTIONS_PER_MINUTE = 2;
-    private static final String KEY_PREFIX = "velocity:";
-
+    private static final String PREFIX = "velocity:";
     private final RedisTemplate<String, String> redisTemplate;
 
     @Override
     public RuleResult evaluate(PaymentEvent event) {
-        String hourKey   = KEY_PREFIX + event.senderId() + ":hour";
-        String minuteKey = KEY_PREFIX + event.senderId() + ":minute";
+        String senderId = event.senderId();
 
         try {
-            Long hourCount   = increment(hourKey,   Duration.ofHours(1));
-            Long minuteCount = increment(minuteKey, Duration.ofMinutes(1));
-
-            if (minuteCount != null && minuteCount > MAX_TRANSACTIONS_PER_MINUTE) {
-                return RuleResult.flag(getRuleName(), 0.95,
-                    "Sender " + event.senderId() + " sent " + minuteCount +
-                    " transactions in 1 minute (max " + MAX_TRANSACTIONS_PER_MINUTE + ")");
+            long minCount = track(senderId, "min", Duration.ofMinutes(1));
+            if (minCount > 2) {
+                return RuleResult.flag(getRuleName(), 0.95, "Minute velocity limit exceeded: " + minCount);
             }
 
-            if (hourCount != null && hourCount > MAX_TRANSACTIONS_PER_HOUR) {
-                return RuleResult.flag(getRuleName(), 0.7,
-                    "Sender " + event.senderId() + " sent " + hourCount +
-                    " transactions in 1 hour (max " + MAX_TRANSACTIONS_PER_HOUR + ")");
+            long hourCount = track(senderId, "hour", Duration.ofHours(1));
+            if (hourCount > 5) {
+                return RuleResult.flag(getRuleName(), 0.7, "Hour velocity limit exceeded: " + hourCount);
             }
-
         } catch (Exception e) {
-            log.warn("Redis unavailable for velocity check, allowing payment: {}", e.getMessage());
+            log.warn("Velocity check bypassed (Redis error): {}", e.getMessage());
         }
 
         return RuleResult.pass(getRuleName());
     }
 
-    private Long increment(String key, Duration ttl) {
+    private long track(String id, String suffix, Duration ttl) {
+        String key = PREFIX + id + ":" + suffix;
         Long count = redisTemplate.opsForValue().increment(key);
         if (count != null && count == 1) {
             redisTemplate.expire(key, ttl);
         }
-        return count;
+        return count != null ? count : 0;
     }
 
     @Override
-    public String getRuleName() {
-        return "VELOCITY_RULE";
-    }
+    public String getRuleName() { return "VELOCITY_RULE"; }
 }

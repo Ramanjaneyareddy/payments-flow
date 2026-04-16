@@ -33,7 +33,6 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        // This allows the application context to load by providing a "no-op" decoder
         return token -> {
             throw new org.springframework.security.oauth2.jwt.JwtException("Mock decoder");
         };
