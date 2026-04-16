@@ -11,32 +11,39 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity   // enables @PreAuthorize on controller methods
 public class SecurityConfig {
 
+    // Public paths — no JWT required
     private static final String[] PUBLIC_PATHS = {
-            "/api/v1/payments",
-            "/api/v1/payments/health",
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/api-docs/**",
-            "/api-docs.yaml",
-            "/actuator/health",
-            "/actuator/info"
+        "/api/v1/payments/**",
+        "/api/v1/payments/health",
+        // Swagger / OpenAPI UI
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/api-docs",
+        "/api-docs/**",
+        "/api-docs.yaml",
+        // Actuator health
+        "/actuator/health",
+        "/actuator/info"
     };
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_PATHS).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(PUBLIC_PATHS).permitAll()
+                // FIX #8: All other endpoints now require authentication
+                .anyRequest().authenticated()
+            )
+            // JWT resource server — validates Bearer tokens
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> {}) // issuer-uri configured in application.yml
+            );
 
         return http.build();
     }
-
 }

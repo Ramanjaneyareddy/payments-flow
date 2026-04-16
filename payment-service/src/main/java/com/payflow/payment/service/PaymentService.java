@@ -32,7 +32,15 @@ public class PaymentService {
             request.senderId(), request.receiverId(), request.amount(), request.currency());
 
         // Build and persist payment
-        Payment payment  = paymentMapper.toEntity(request);
+        Payment payment = Payment.builder()
+            .senderId(request.senderId())
+            .receiverId(request.receiverId())
+            .amount(request.amount())
+            .currency(request.currency())
+            .description(request.description())
+            .status(PaymentStatus.PENDING)
+            .build();
+
         payment = paymentRepository.save(payment);
 
         // Publish to Kafka for fraud detection

@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
-        "/api/v1/ai/health",
+        "/api/v1/ai/**",
         "/swagger-ui.html",
         "/swagger-ui/**",
         "/api-docs",

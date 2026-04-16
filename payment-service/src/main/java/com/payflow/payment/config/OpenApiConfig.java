@@ -27,7 +27,36 @@ public class OpenApiConfig {
             .info(new Info()
                 .title("PayFlow — Payment Service API")
                 .version("1.0.0")
-                .description("REST API for managing the payment lifecycle, including initiation, fraud checks, and status tracking"))
+                .description("""
+                    ## Payment Service
+                    
+                    Handles **payment initiation and lifecycle management** for the PayFlow platform.
+                    
+                    ### Key responsibilities
+                    - Accept and validate incoming payment requests
+                    - Persist payments with initial `PENDING` status
+                    - Publish `payment.initiated` events to Kafka for fraud detection
+                    - Update payment status based on fraud results (`APPROVED` / `REJECTED`)
+                    - Expose payment retrieval endpoints
+                    
+                    ### Payment lifecycle
+                    ```
+                    PENDING → FRAUD_CHECK → APPROVED → COMPLETED
+                                         ↘ REJECTED
+                                         ↘ REVIEW (manual review required)
+                    ```
+                    
+                    ### Authentication
+                    Bearer JWT token required on all endpoints (except `/health`).
+                    Obtain a token from the configured identity provider.
+                    """)
+                .contact(new Contact()
+                    .name("Ramanjaneya Reddy S")
+                    .email("rama@payflow.com")
+                    .url("https://github.com/Ramanjaneyareddy"))
+                .license(new License()
+                    .name("MIT License")
+                    .url("https://opensource.org/licenses/MIT")))
             .servers(List.of(
                 new Server().url("http://localhost:" + serverPort).description("Local development"),
                 new Server().url("https://api.payflow.com").description("Production")))
@@ -37,6 +66,9 @@ public class OpenApiConfig {
                     .scheme("bearer")
                     .bearerFormat("JWT")
                     .description("Enter JWT Bearer token. Example: `Bearer eyJhbGci...`")))
-            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
+            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+            .externalDocs(new ExternalDocumentation()
+                .description("PayFlow GitHub Repository")
+                .url("https://github.com/Ramanjaneyareddy/payflow-source"));
     }
 }

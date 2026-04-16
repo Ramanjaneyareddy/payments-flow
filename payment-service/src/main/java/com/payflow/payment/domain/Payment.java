@@ -10,7 +10,7 @@ import java.util.UUID;
 @Table(name = "payments")
 @Getter
 @Setter
-@NoArgsConstructor(access =  AccessLevel.PROTECTED)
+@NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Payment {

@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -34,21 +35,72 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Initiate a new payment", description = "Asynchronously processes a new payment via Kafka.")
+    // ─────────────────────────────────────────────────────────────────
+    // POST /api/v1/payments
+    // ─────────────────────────────────────────────────────────────────
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE,
+                 produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(
+        summary     = "Initiate a new payment",
+        description = """
+            Creates a new payment and submits it for fraud analysis.
+            
+            **Flow:**
+            1. Validates the request
+            2. Persists payment with status `PENDING`
+            3. Publishes `payment.initiated` event to Kafka
+            4. Updates status to `FRAUD_CHECK` and returns immediately
+            
+            The final status (`APPROVED` / `REJECTED`) is set asynchronously
+            by the fraud-detection-service.
+            """)
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Payment initiated"),
-            @ApiResponse(responseCode = "400", description = "Validation error")
+        @ApiResponse(responseCode = "201", description = "Payment initiated successfully",
+            content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request payload",
+            content = @Content(schema = @Schema(implementation = ProblemDetail.class),
+                examples = @ExampleObject(value = """
+                    {
+                      "type": "https://payflow.com/errors/validation-failed",
+                      "title": "Bad Request",
+                      "status": 400,
+                      "detail": "amount: Amount must be greater than 0",
+                      "timestamp": "2024-03-15T10:30:00Z"
+                    }"""))),
+        @ApiResponse(responseCode = "401", description = "Unauthorised — missing or invalid JWT"),
+        @ApiResponse(responseCode = "500", description = "Internal server error",
+            content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
-    public PaymentResponse initiatePayment(@Valid @RequestBody PaymentRequest request) {
-        log.info("REST request to initiate payment from {} amount {} {}", request.senderId(), request.amount(), request.currency());
-        return paymentService.initiatePayment(request);
+    public ResponseEntity<PaymentResponse> initiatePayment(
+            @Valid @RequestBody
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Payment initiation request",
+                required = true,
+                content = @Content(
+                    schema = @Schema(implementation = PaymentRequest.class),
+                    examples = @ExampleObject(name = "EUR transfer", value = """
+                        {
+                          "senderId":    "user-abc-123",
+                          "receiverId":  "user-xyz-456",
+                          "amount":      "250.00",
+                          "currency":    "EUR",
+                          "description": "Invoice #INV-2024-001 payment"
+                        }""")))
+            PaymentRequest request) {
+
+        log.info("REST request to initiate payment from {} amount {} {}",
+            request.senderId(), request.amount(), request.currency());
+        PaymentResponse response = paymentService.initiatePayment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // GET /api/v1/payments/{id}
+    // ─────────────────────────────────────────────────────────────────
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseStatus(HttpStatus.OK)
-    @Operation(summary = "Get payment by ID", description = "Retrieves the full details of a single payment by its UUID.")
+    @Operation(
+        summary     = "Get payment by ID",
+        description = "Retrieves the full details of a single payment by its UUID.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Payment found",
             content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
@@ -56,29 +108,36 @@ public class PaymentController {
             content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
         @ApiResponse(responseCode = "401", description = "Unauthorised")
     })
-    public PaymentResponse getPayment(
+    public ResponseEntity<PaymentResponse> getPayment(
             @Parameter(description = "UUID of the payment", required = true,
                        example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable UUID id) {
         log.info("REST request to get payment: {}", id);
-        return paymentService.getPaymentById(id);
+        return ResponseEntity.ok(paymentService.getPaymentById(id));
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // GET /api/v1/payments/sender/{senderId}
+    // ─────────────────────────────────────────────────────────────────
     @GetMapping(value = "/sender/{senderId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseStatus(HttpStatus.OK)
-    @Operation(summary = "Get all payments by sender", description = "Returns all payments initiated by the specified sender, ordered by creation date descending.")
+    @Operation(
+        summary     = "Get all payments by sender",
+        description = "Returns all payments initiated by the specified sender, ordered by creation date descending.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "List of payments (may be empty)",
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = PaymentResponse.class)))),
         @ApiResponse(responseCode = "401", description = "Unauthorised")
     })
-    public List<PaymentResponse> getPaymentsBySender(
+    public ResponseEntity<List<PaymentResponse>> getPaymentsBySender(
             @Parameter(description = "Sender identifier", required = true, example = "user-abc-123")
             @PathVariable String senderId) {
         log.info("REST request to get payments for sender: {}", senderId);
-        return paymentService.getPaymentsBySender(senderId);
+        return ResponseEntity.ok(paymentService.getPaymentsBySender(senderId));
     }
 
+    // ─────────────────────────────────────────────────────────────────
+    // GET /api/v1/payments/health
+    // ─────────────────────────────────────────────────────────────────
     @GetMapping(value = "/health", produces = MediaType.TEXT_PLAIN_VALUE)
     @Operation(
         summary     = "Service health check",

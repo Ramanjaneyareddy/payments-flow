@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
+        "/api/v1/inquiry/**",
         "/api/v1/inquiry/health",
         // Swagger / OpenAPI UI
         "/swagger-ui.html",
